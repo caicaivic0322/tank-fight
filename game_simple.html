@@ -1,0 +1,1527 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D坦克大战</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            overflow: hidden;
+            font-family: Arial, sans-serif;
+        }
+
+        #game-container {
+            width: 100vw;
+            height: 100vh;
+            background: #87CEEB;
+        }
+
+        #health-bar {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 16px;
+            border-radius: 12px;
+            z-index: 100;
+        }
+
+        #health-bar .title {
+            font-size: 20px;
+            font-weight: bold;
+            margin-bottom: 8px;
+        }
+
+        #health-bar .bar-container {
+            width: 256px;
+            height: 16px;
+            background: #374151;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        #health-bar .bar {
+            height: 100%;
+            background: #22c55e;
+            transition: width 0.3s;
+        }
+
+        #health-bar .value {
+            margin-top: 8px;
+            font-size: 18px;
+        }
+
+        #controls {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 16px;
+            border-radius: 12px;
+            z-index: 100;
+        }
+
+        #controls .title {
+            font-size: 20px;
+            font-weight: bold;
+            margin-bottom: 8px;
+        }
+
+        #controls .item {
+            font-size: 14px;
+            margin: 4px 0;
+        }
+
+        #camera-info {
+            position: absolute;
+            top: 180px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 12px 20px;
+            border-radius: 8px;
+            z-index: 100;
+            font-size: 14px;
+        }
+
+        #game-over {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 200;
+        }
+
+        #game-over .content {
+            background: #dc2626;
+            color: white;
+            padding: 32px;
+            border-radius: 16px;
+            text-align: center;
+        }
+
+        #game-over .title {
+            font-size: 48px;
+            font-weight: bold;
+            margin-bottom: 16px;
+        }
+
+        #game-over .message {
+            font-size: 24px;
+            margin-bottom: 24px;
+        }
+
+        #game-over button {
+            background: white;
+            color: #dc2626;
+            padding: 12px 32px;
+            border: none;
+            border-radius: 8px;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        #game-over button:hover {
+            background: #e5e7eb;
+        }
+
+        #game-won {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 200;
+        }
+
+        #game-won .content {
+            background: #16a34a;
+            color: white;
+            padding: 32px;
+            border-radius: 16px;
+            text-align: center;
+        }
+
+        #game-won .title {
+            font-size: 48px;
+            font-weight: bold;
+            margin-bottom: 16px;
+        }
+
+        #game-won .message {
+            font-size: 24px;
+            margin-bottom: 24px;
+        }
+
+        #game-won button {
+            background: white;
+            color: #16a34a;
+            padding: 12px 32px;
+            border: none;
+            border-radius: 8px;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        #game-won button:hover {
+            background: #e5e7eb;
+        }
+    </style>
+</head>
+<body>
+    <div id="game-container"></div>
+
+    <div id="health-bar">
+        <div class="title">玩家生命值</div>
+        <div class="bar-container">
+            <div class="bar" id="health-bar-fill"></div>
+        </div>
+        <div class="value" id="health-value">100 / 100</div>
+    </div>
+
+    <div id="controls">
+        <div class="title">控制说明</div>
+        <div class="item">WASD / 方向键：移动坦克</div>
+        <div class="item">鼠标左键：发射炮弹</div>
+        <div class="item">V：切换视角（上帝视角/第一人称）</div>
+        <div class="item">上帝视角：鼠标控制方向</div>
+        <div class="item">第一人称：A/D键控制旋转</div>
+    </div>
+
+    <div id="camera-info">当前视角：上帝视角</div>
+
+    <div id="game-over">
+        <div class="content">
+            <div class="title">游戏结束</div>
+            <div class="message">很遗憾，你被击败了！</div>
+            <button onclick="restartGame()">重新开始</button>
+        </div>
+    </div>
+
+    <div id="game-won">
+        <div class="content">
+            <div class="title">胜利！</div>
+            <div class="message">恭喜你击败了所有敌方坦克！</div>
+            <button onclick="restartGame()">重新开始</button>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+        // 添加错误处理
+        window.addEventListener('error', function(event) {
+            console.error('JavaScript Error:', event.error.message);
+            console.error('Error in:', event.filename, 'at line', event.lineno, 'column', event.colno);
+            alert('游戏加载失败: ' + event.error.message);
+        });
+        
+        // 检查Three.js是否加载成功
+        if (typeof THREE === 'undefined') {
+            alert('Three.js库加载失败，请检查网络连接或CDN链接');
+        }
+        
+        let scene, camera, renderer;
+        let playerTank;
+        let allyTanks = [];
+        let enemyTanks = [];
+        let bullets = [];
+        let obstacles = [];
+        let particles = []; // 粒子数组
+        let smokeParticles = []; // 冒烟粒子数组
+        let keys = {};
+        let mouse = { x: 0, y: 0 };
+        let gameOver = false;
+        let gameWon = false;
+        let cameraMode = 'god';
+        const MAP_SIZE = 250;
+        const BOUNDARY_SIZE = 120;
+        let audioContext;
+
+        function initAudio() {
+            audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            if (audioContext.state === 'suspended') {
+                audioContext.resume();
+            }
+        }
+
+        function ensureAudioContext() {
+            if (!audioContext) {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            if (audioContext.state === 'suspended') {
+                audioContext.resume();
+            }
+        }
+
+        function playHitSound() {
+            ensureAudioContext();
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+            
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            
+            oscillator.frequency.setValueAtTime(800, audioContext.currentTime);
+            oscillator.frequency.exponentialRampToValueAtTime(200, audioContext.currentTime + 0.1);
+            
+            gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.1);
+            
+            oscillator.start(audioContext.currentTime);
+            oscillator.stop(audioContext.currentTime + 0.1);
+        }
+
+        function playExplosionSound() {
+            ensureAudioContext();
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+            
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            
+            oscillator.type = 'sawtooth';
+            oscillator.frequency.setValueAtTime(150, audioContext.currentTime);
+            oscillator.frequency.exponentialRampToValueAtTime(30, audioContext.currentTime + 0.5);
+            
+            gainNode.gain.setValueAtTime(0.4, audioContext.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
+            
+            oscillator.start(audioContext.currentTime);
+            oscillator.stop(audioContext.currentTime + 0.5);
+        }
+
+        function playDefeatSound() {
+            ensureAudioContext();
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+            
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            
+            oscillator.type = 'triangle';
+            oscillator.frequency.setValueAtTime(400, audioContext.currentTime);
+            oscillator.frequency.exponentialRampToValueAtTime(100, audioContext.currentTime + 1);
+            
+            gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 1);
+            
+            oscillator.start(audioContext.currentTime);
+            oscillator.stop(audioContext.currentTime + 1);
+        }
+
+        function playVictorySound() {
+            ensureAudioContext();
+            const notes = [523.25, 659.25, 783.99, 1046.50];
+            notes.forEach((freq, i) => {
+                setTimeout(() => {
+                    const oscillator = audioContext.createOscillator();
+                    const gainNode = audioContext.createGain();
+                    
+                    oscillator.connect(gainNode);
+                    gainNode.connect(audioContext.destination);
+                    
+                    oscillator.type = 'sine';
+                    oscillator.frequency.setValueAtTime(freq, audioContext.currentTime);
+                    
+                    gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+                    gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
+                    
+                    oscillator.start(audioContext.currentTime);
+                    oscillator.stop(audioContext.currentTime + 0.3);
+                }, i * 150);
+            });
+        }
+
+        function playShootSound() {
+            if (!audioContext) return;
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+            
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            
+            oscillator.type = 'sawtooth';
+            oscillator.frequency.setValueAtTime(200, audioContext.currentTime);
+            oscillator.frequency.exponentialRampToValueAtTime(50, audioContext.currentTime + 0.15);
+            
+            gainNode.gain.setValueAtTime(0.2, audioContext.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.15);
+            
+            oscillator.start(audioContext.currentTime);
+            oscillator.stop(audioContext.currentTime + 0.15);
+        }
+
+        function init() {
+            initAudio();
+
+            const container = document.getElementById('game-container');
+            const width = window.innerWidth;
+            const height = window.innerHeight;
+
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x87CEEB);
+            scene.fog = new THREE.Fog(0x87CEEB, 100, 400);
+
+            camera = new THREE.PerspectiveCamera(60, width / height, 0.1, 1000);
+            camera.position.set(0, 50, 60);
+            camera.lookAt(0, 0, 0);
+
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(width, height);
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            container.appendChild(renderer.domElement);
+
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+            scene.add(ambientLight);
+
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 1.0);
+            directionalLight.position.set(80, 120, 80);
+            directionalLight.castShadow = true;
+            directionalLight.shadow.mapSize.width = 4096;
+            directionalLight.shadow.mapSize.height = 4096;
+            directionalLight.shadow.camera.near = 0.5;
+            directionalLight.shadow.camera.far = 500;
+            directionalLight.shadow.camera.left = -100;
+            directionalLight.shadow.camera.right = 100;
+            directionalLight.shadow.camera.top = 100;
+            directionalLight.shadow.camera.bottom = -100;
+            scene.add(directionalLight);
+
+            // 创建地面
+            const groundGeometry = new THREE.PlaneGeometry(MAP_SIZE, MAP_SIZE);
+            const groundMaterial = new THREE.MeshStandardMaterial({ 
+                color: 0x3d5c3d,
+                roughness: 0.8
+            });
+            const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+            ground.rotation.x = -Math.PI / 2;
+            ground.receiveShadow = true;
+            scene.add(ground);
+
+            createBoundaries();
+            createPlayerTank();
+            createAllyTanks();
+            createEnemyTanks();
+            createObstacles();
+
+            console.log('Game initialized with', enemyTanks.length, 'enemy tanks');
+
+            window.addEventListener('keydown', onKeyDown);
+            window.addEventListener('keyup', onKeyUp);
+            window.addEventListener('mousemove', onMouseMove);
+            window.addEventListener('mousedown', onMouseDown);
+            window.addEventListener('resize', onWindowResize);
+
+            animate();
+        }
+
+        function createBoundaries() {
+            const wallMaterial = new THREE.MeshStandardMaterial({ 
+                color: 0x666666,
+                roughness: 0.7
+            });
+            const wallHeight = 5;
+
+            const walls = [
+                { pos: [0, wallHeight/2, -BOUNDARY_SIZE], size: [BOUNDARY_SIZE*2, wallHeight, 2] },
+                { pos: [0, wallHeight/2, BOUNDARY_SIZE], size: [BOUNDARY_SIZE*2, wallHeight, 2] },
+                { pos: [-BOUNDARY_SIZE, wallHeight/2, 0], size: [2, wallHeight, BOUNDARY_SIZE*2] },
+                { pos: [BOUNDARY_SIZE, wallHeight/2, 0], size: [2, wallHeight, BOUNDARY_SIZE*2] }
+            ];
+
+            walls.forEach(wall => {
+                const geometry = new THREE.BoxGeometry(wall.size[0], wall.size[1], wall.size[2]);
+                const mesh = new THREE.Mesh(geometry, wallMaterial);
+                mesh.position.set(wall.pos[0], wall.pos[1], wall.pos[2]);
+                mesh.castShadow = true;
+                mesh.receiveShadow = true;
+                scene.add(mesh);
+                obstacles.push(mesh);
+            });
+        }
+
+        function createTank(color, x, z, isPlayer) {
+            const tankGroup = new THREE.Group();
+
+            const bodyMaterial = new THREE.MeshStandardMaterial({ 
+                color: color,
+                roughness: 0.6,
+                metalness: 0.3
+            });
+
+            // 简化车身 - 只保留必要组件
+            const bodyGeometry = new THREE.BoxGeometry(3.5, 1.8, 5);
+            const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
+            body.position.y = 1.2;
+            body.castShadow = true;
+            body.receiveShadow = true;
+            tankGroup.add(body);
+
+            // 底部装甲板
+            const armorPlateGeometry = new THREE.BoxGeometry(3.6, 0.3, 5.2);
+            const armorPlate = new THREE.Mesh(armorPlateGeometry, bodyMaterial);
+            armorPlate.position.y = 0.3;
+            armorPlate.castShadow = true;
+            tankGroup.add(armorPlate);
+
+            // 简化履带设计
+            const trackMaterial = new THREE.MeshStandardMaterial({ 
+                color: 0x333333,
+                roughness: 0.9,
+                metalness: 0.1
+            });
+
+            // 履带主体
+            const trackGeometry = new THREE.BoxGeometry(0.9, 1.1, 5.4);
+            const leftTrack = new THREE.Mesh(trackGeometry, trackMaterial);
+            leftTrack.position.set(-2.2, 0.55, 0);
+            leftTrack.castShadow = true;
+            tankGroup.add(leftTrack);
+
+            const rightTrack = new THREE.Mesh(trackGeometry, trackMaterial);
+            rightTrack.position.set(2.2, 0.55, 0);
+            rightTrack.castShadow = true;
+            tankGroup.add(rightTrack);
+
+            // 简化轮子设计 - 只保留关键轮子
+            const wheelMaterial = new THREE.MeshStandardMaterial({ 
+                color: 0x111111,
+                roughness: 0.7,
+                metalness: 0.6
+            });
+
+            // 驱动轮（前后大轮）
+            const driveWheelGeometry = new THREE.CylinderGeometry(0.45, 0.45, 0.5, 16);
+            
+            // 左侧驱动轮
+            const leftFrontDriveWheel = new THREE.Mesh(driveWheelGeometry, wheelMaterial);
+            leftFrontDriveWheel.rotation.z = Math.PI / 2;
+            leftFrontDriveWheel.position.set(-2.2, 0.45, 2.5);
+            leftFrontDriveWheel.castShadow = true;
+            tankGroup.add(leftFrontDriveWheel);
+
+            const leftRearDriveWheel = new THREE.Mesh(driveWheelGeometry, wheelMaterial);
+            leftRearDriveWheel.rotation.z = Math.PI / 2;
+            leftRearDriveWheel.position.set(-2.2, 0.45, -2.5);
+            leftRearDriveWheel.castShadow = true;
+            tankGroup.add(leftRearDriveWheel);
+
+            // 右侧驱动轮
+            const rightFrontDriveWheel = new THREE.Mesh(driveWheelGeometry, wheelMaterial);
+            rightFrontDriveWheel.rotation.z = Math.PI / 2;
+            rightFrontDriveWheel.position.set(2.2, 0.45, 2.5);
+            rightFrontDriveWheel.castShadow = true;
+            tankGroup.add(rightFrontDriveWheel);
+
+            const rightRearDriveWheel = new THREE.Mesh(driveWheelGeometry, wheelMaterial);
+            rightRearDriveWheel.rotation.z = Math.PI / 2;
+            rightRearDriveWheel.position.set(2.2, 0.45, -2.5);
+            rightRearDriveWheel.castShadow = true;
+            tankGroup.add(rightRearDriveWheel);
+
+            // 简化炮塔设计
+            const turretMaterial = new THREE.MeshStandardMaterial({ 
+                color: color,
+                roughness: 0.4,
+                metalness: 0.5
+            });
+
+            // 炮塔基础
+            const turretBaseGeometry = new THREE.CylinderGeometry(1.4, 1.7, 1.2, 16);
+            const turretBase = new THREE.Mesh(turretBaseGeometry, turretMaterial);
+            turretBase.position.y = 2.8;
+            turretBase.castShadow = true;
+            turretBase.receiveShadow = true;
+            tankGroup.add(turretBase);
+
+            // 简化炮塔环
+            const turretRingMaterial = new THREE.MeshStandardMaterial({ 
+                color: 0x222222,
+                roughness: 0.3,
+                metalness: 0.9
+            });
+            const turretRingGeometry = new THREE.TorusGeometry(1.35, 0.12, 8, 16);
+            const turretRing = new THREE.Mesh(turretRingGeometry, turretRingMaterial);
+            turretRing.rotation.x = Math.PI / 2;
+            turretRing.position.y = 2.35;
+            turretRing.castShadow = true;
+            tankGroup.add(turretRing);
+
+            // 简化炮管设计
+            const barrelMaterial = new THREE.MeshStandardMaterial({ 
+                color: 0x222222,
+                roughness: 0.2,
+                metalness: 0.9
+            });
+
+            // 炮管主体
+            const barrelMainGeometry = new THREE.CylinderGeometry(0.28, 0.32, 4.0, 16);
+            const barrelMain = new THREE.Mesh(barrelMainGeometry, barrelMaterial);
+            barrelMain.rotation.x = Math.PI / 2;
+            barrelMain.position.set(0, 3.0, 2.8);
+            barrelMain.castShadow = true;
+            tankGroup.add(barrelMain);
+
+            // 炮口制退器
+            const muzzleBrakeGeometry = new THREE.CylinderGeometry(0.4, 0.32, 0.6, 12);
+            const muzzleBrake = new THREE.Mesh(muzzleBrakeGeometry, barrelMaterial);
+            muzzleBrake.rotation.x = Math.PI / 2;
+            muzzleBrake.position.set(0, 3.0, 5.0);
+            muzzleBrake.castShadow = true;
+            tankGroup.add(muzzleBrake);
+
+            // 简化舱口设计
+            const hatchGeometry = new THREE.CylinderGeometry(0.4, 0.5, 0.3, 12);
+            const hatchMaterial = new THREE.MeshStandardMaterial({ 
+                color: 0x222222,
+                roughness: 0.3,
+                metalness: 0.6
+            });
+            const hatch = new THREE.Mesh(hatchGeometry, hatchMaterial);
+            hatch.position.set(0, 3.5, 0);
+            hatch.castShadow = true;
+            tankGroup.add(hatch);
+
+            // 简化天线设计
+            const antennaGeometry = new THREE.CylinderGeometry(0.05, 0.05, 1.5, 8);
+            const antennaMaterial = new THREE.MeshStandardMaterial({ 
+                color: 0x444444,
+                roughness: 0.4,
+                metalness: 0.6
+            });
+            const antenna = new THREE.Mesh(antennaGeometry, antennaMaterial);
+            antenna.position.set(0.8, 4.2, 0);
+            antenna.castShadow = true;
+            tankGroup.add(antenna);
+
+            const antennaBallGeometry = new THREE.SphereGeometry(0.1, 8, 8);
+            const antennaBall = new THREE.Mesh(antennaBallGeometry, antennaMaterial);
+            antennaBall.position.set(0.8, 5, 0);
+            tankGroup.add(antennaBall);
+
+            // 简化车灯设计
+            const lightMaterial = new THREE.MeshStandardMaterial({ 
+                color: 0xFFFF00,
+                emissive: 0xFFFF00,
+                emissiveIntensity: 0.5,
+                roughness: 0.3,
+                metalness: 0.7
+            });
+            
+            const headlightGeometry = new THREE.CylinderGeometry(0.15, 0.15, 0.3, 12);
+            
+            // 前大灯
+            const leftHeadlight = new THREE.Mesh(headlightGeometry, lightMaterial);
+            leftHeadlight.rotation.x = Math.PI / 2;
+            leftHeadlight.position.set(-1.0, 1.5, 2.5);
+            leftHeadlight.castShadow = true;
+            tankGroup.add(leftHeadlight);
+            
+            const rightHeadlight = new THREE.Mesh(headlightGeometry, lightMaterial);
+            rightHeadlight.rotation.x = Math.PI / 2;
+            rightHeadlight.position.set(1.0, 1.5, 2.5);
+            rightHeadlight.castShadow = true;
+            tankGroup.add(rightHeadlight);
+
+            tankGroup.position.set(x, 0, z);
+            scene.add(tankGroup);
+
+            return {
+                mesh: tankGroup,
+                health: 100,
+                isPlayer: isPlayer,
+                lastShot: 0,
+                targetPosition: new THREE.Vector3(x, 0, z),
+                velocity: new THREE.Vector3(0, 0, 0),
+                hitCount: 0 // 追踪被击中次数
+            };
+        }
+
+        function createPlayerTank() {
+            playerTank = createTank(0x228B22, 0, 80, true);
+        }
+
+        function createAllyTanks() {
+            const allyPositions = [
+                { x: -30, z: 70 },
+                { x: 30, z: 70 },
+                { x: 0, z: 60 }
+            ];
+
+            allyPositions.forEach(pos => {
+                const allyTank = createTank(0x32CD32, pos.x, pos.z, true);
+                allyTanks.push(allyTank);
+            });
+        }
+
+        function createEnemyTanks() {
+            const enemyPositions = [
+                { x: -60, z: -60 },
+                { x: 60, z: -60 },
+                { x: 0, z: -80 },
+                { x: -80, z: 0 },
+                { x: 80, z: 0 },
+                { x: -50, z: -50 },
+                { x: 50, z: -50 }
+            ];
+
+            enemyPositions.forEach(pos => {
+                const enemyTank = createTank(0x8B0000, pos.x, pos.z, false);
+                enemyTanks.push(enemyTank);
+            });
+            console.log('Created', enemyTanks.length, 'enemy tanks');
+        }
+
+        function createObstacle(x, z, width, height, depth, color = 0x8B4513) {
+            const geometry = new THREE.BoxGeometry(width, height, depth);
+            const material = new THREE.MeshStandardMaterial({ 
+                color: color,
+                roughness: 0.7,
+                metalness: 0.1
+            });
+            const obstacle = new THREE.Mesh(geometry, material);
+            obstacle.position.set(x, height / 2, z);
+            obstacle.castShadow = true;
+            obstacle.receiveShadow = true;
+            scene.add(obstacle);
+            obstacles.push(obstacle);
+
+            const edgeGeometry = new THREE.EdgesGeometry(geometry);
+            const edgeMaterial = new THREE.LineBasicMaterial({ color: 0x000000, linewidth: 2 });
+            const edges = new THREE.LineSegments(edgeGeometry, edgeMaterial);
+            edges.position.copy(obstacle.position);
+            scene.add(edges);
+        }
+
+        function createCylinderObstacle(x, z, radius, height, color = 0x8B4513) {
+            const geometry = new THREE.CylinderGeometry(radius, radius, height, 32);
+            const material = new THREE.MeshStandardMaterial({ 
+                color: color,
+                roughness: 0.6,
+                metalness: 0.2
+            });
+            const obstacle = new THREE.Mesh(geometry, material);
+            obstacle.position.set(x, height / 2, z);
+            obstacle.castShadow = true;
+            obstacle.receiveShadow = true;
+            scene.add(obstacle);
+            obstacles.push(obstacle);
+        }
+
+        function createObstacles() {
+            // 创建随机障碍物
+            for (let i = 0; i < 15; i++) {
+                const x = Math.random() * BOUNDARY_SIZE * 1.5 - BOUNDARY_SIZE * 0.75;
+                const z = Math.random() * BOUNDARY_SIZE * 1.5 - BOUNDARY_SIZE * 0.75;
+                const width = 2 + Math.random() * 8;
+                const height = 2 + Math.random() * 8;
+                const depth = 2 + Math.random() * 8;
+                createObstacle(x, z, width, height, depth);
+            }
+
+            // 创建固定障碍物
+            createObstacle(0, 20, 6, 7, 6, 0x5D4037);
+            createObstacle(-30, -20, 6, 4, 6, 0x6D4C41);
+            createObstacle(30, -20, 6, 4, 6, 0x6D4C41);
+            createObstacle(-100, 40, 8, 6, 8, 0x4E342E);
+            createObstacle(100, 40, 8, 6, 8, 0x4E342E);
+            createObstacle(0, 90, 15, 6, 15, 0x4E342E);
+
+            createCylinderObstacle(-30, 30, 3, 5, 0x8B4513);
+            createCylinderObstacle(30, 30, 3, 5, 0x8B4513);
+            createCylinderObstacle(-30, -50, 3, 5, 0x8B4513);
+            createCylinderObstacle(30, -50, 3, 5, 0x8B4513);
+            createCylinderObstacle(0, 0, 4, 6, 0x5D4037);
+            createCylinderObstacle(-70, 20, 3.5, 5, 0x6D4C41);
+            createCylinderObstacle(70, 20, 3.5, 5, 0x6D4C41);
+            createCylinderObstacle(-70, -20, 3.5, 5, 0x6D4C41);
+            createCylinderObstacle(70, -20, 3.5, 5, 0x6D4C41);
+        }
+
+        function shoot(tank, isPlayer) {
+            const now = Date.now();
+            if (now - tank.lastShot < 1000) return; // 射击冷却时间1秒
+            tank.lastShot = now;
+
+            // 播放射击音效
+            playShootSound();
+
+            // 创建子弹网格
+            const bulletGeometry = new THREE.SphereGeometry(0.4, 16, 16);
+            const bulletMaterial = new THREE.MeshStandardMaterial({ 
+                color: isPlayer ? 0xFF0000 : 0x00FF00,
+                emissive: isPlayer ? 0xFF0000 : 0x00FF00,
+                emissiveIntensity: 0.5
+            });
+            const bullet = new THREE.Mesh(bulletGeometry, bulletMaterial);
+
+            // 设置子弹初始位置在炮口
+            bullet.position.copy(tank.mesh.position);
+            bullet.position.y = 2.8;
+
+            // 计算发射方向
+            let direction;
+            if (isPlayer) {
+                // 玩家射击：使用鼠标指向的方向
+                const raycaster = new THREE.Raycaster();
+                const mouseVector = new THREE.Vector2(
+                    (mouse.x / window.innerWidth) * 2 - 1,
+                    -(mouse.y / window.innerHeight) * 2 + 1
+                );
+                
+                raycaster.setFromCamera(mouseVector, camera);
+                
+                // 创建一个虚拟水平面（在坦克高度）
+                const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -tank.mesh.position.y);
+                const intersectionPoint = new THREE.Vector3();
+                
+                // 计算射线与平面的交点
+                raycaster.ray.intersectPlane(plane, intersectionPoint);
+                
+                // 计算从坦克到交点的方向
+                direction = new THREE.Vector3();
+                direction.subVectors(intersectionPoint, tank.mesh.position);
+                direction.y = 0; // 强制水平发射
+                direction.normalize();
+            } else {
+                // AI射击：沿坦克正前方
+                direction = new THREE.Vector3(0, 0, 1);
+                direction.applyQuaternion(tank.mesh.quaternion);
+                direction.y = 0;
+                direction.normalize();
+            }
+
+            scene.add(bullet);
+
+            bullets.push({
+                mesh: bullet,
+                direction: direction,
+                isPlayerBullet: isPlayer,
+                creationTime: now,
+                speed: 2.0 // 子弹速度
+            });
+        }
+
+        function checkCollision(position, radius) {
+            for (const obstacle of obstacles) {
+                const box = new THREE.Box3().setFromObject(obstacle);
+                const sphere = new THREE.Sphere(position, radius);
+                if (box.intersectsSphere(sphere)) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        function checkTankCollision(tank1, tank2, radius = 3) {
+            const distance = tank1.mesh.position.distanceTo(tank2.mesh.position);
+            return distance < radius * 2;
+        }
+
+        function resolveCollision(tank, radius = 3) {
+            // 检查与障碍物的碰撞
+            let maxIterations = 5; // 最多迭代5次
+            let iteration = 0;
+            
+            while (iteration < maxIterations) {
+                let hasCollision = false;
+                
+                for (const obstacle of obstacles) {
+                    const box = new THREE.Box3().setFromObject(obstacle);
+                    const sphere = new THREE.Sphere(tank.mesh.position, radius);
+                    
+                    if (box.intersectsSphere(sphere)) {
+                        hasCollision = true;
+                        
+                        // 找出碰撞方向并推开坦克
+                        const center = new THREE.Vector3();
+                        box.getCenter(center);
+                        const pushDirection = new THREE.Vector3();
+                        pushDirection.subVectors(tank.mesh.position, center);
+                        pushDirection.y = 0;
+                        
+                        // 如果坦克正好在障碍物中心，随机选择一个方向
+                        if (pushDirection.length() < 0.1) {
+                            pushDirection.set(Math.random() - 0.5, 0, Math.random() - 0.5);
+                        }
+                        
+                        pushDirection.normalize();
+                        
+                        // 计算需要的推开距离 - 使用更保守的估计
+                        const boxSize = new THREE.Vector3();
+                        box.getSize(boxSize);
+                        const maxBoxSize = Math.max(boxSize.x, boxSize.z);
+                        const minDistance = radius + maxBoxSize / 2 + 0.8; // 增加额外的安全距离
+                        
+                        const distance = tank.mesh.position.distanceTo(center);
+                        const pushDistance = minDistance - distance + 1.0; // 增加额外的推开距离
+                        
+                        // 推开坦克
+                        tank.mesh.position.x += pushDirection.x * pushDistance;
+                        tank.mesh.position.z += pushDirection.z * pushDistance;
+                        
+                        // 确保坦克不会超出边界
+                        tank.mesh.position.x = Math.max(-BOUNDARY_SIZE + radius, Math.min(BOUNDARY_SIZE - radius, tank.mesh.position.x));
+                        tank.mesh.position.z = Math.max(-BOUNDARY_SIZE + radius, Math.min(BOUNDARY_SIZE - radius, tank.mesh.position.z));
+                    }
+                }
+                
+                // 如果没有碰撞，退出循环
+                if (!hasCollision) {
+                    break;
+                }
+                
+                iteration++;
+            }
+        }
+
+        function resolveTankCollision(tank1, tank2, radius = 3) {
+            const distance = tank1.mesh.position.distanceTo(tank2.mesh.position);
+            const minDistance = radius * 2;
+            
+            if (distance < minDistance) {
+                const pushDirection = new THREE.Vector3();
+                pushDirection.subVectors(tank1.mesh.position, tank2.mesh.position);
+                pushDirection.y = 0;
+                pushDirection.normalize();
+                
+                const pushDistance = (minDistance - distance) / 2;
+                
+                tank1.mesh.position.x += pushDirection.x * pushDistance;
+                tank1.mesh.position.z += pushDirection.z * pushDistance;
+                tank2.mesh.position.x -= pushDirection.x * pushDistance;
+                tank2.mesh.position.z -= pushDirection.z * pushDistance;
+            }
+        }
+
+        function checkBoundary(position, radius) {
+            const halfBoundary = BOUNDARY_SIZE - radius;
+            return Math.abs(position.x) > halfBoundary || Math.abs(position.z) > halfBoundary;
+        }
+
+        function createExplosion(position) {
+            // 创建爆炸粒子
+            const particleCount = 30;
+            const colors = [0xFF4500, 0xFF6347, 0xFFD700, 0xFFA500, 0xFFFFFF];
+            
+            for (let i = 0; i < particleCount; i++) {
+                const geometry = new THREE.SphereGeometry(0.3 + Math.random() * 0.3, 8, 8);
+                const color = colors[Math.floor(Math.random() * colors.length)];
+                const material = new THREE.MeshBasicMaterial({ 
+                    color: color,
+                    transparent: true,
+                    opacity: 1.0
+                });
+                const particle = new THREE.Mesh(geometry, material);
+                
+                // 设置粒子位置
+                particle.position.copy(position);
+                particle.position.x += (Math.random() - 0.5) * 2;
+                particle.position.y += Math.random() * 2;
+                particle.position.z += (Math.random() - 0.5) * 2;
+                
+                // 随机速度方向
+                const speed = 0.3 + Math.random() * 0.5;
+                const angle = Math.random() * Math.PI * 2;
+                const verticalAngle = Math.random() * Math.PI / 2;
+                
+                particle.userData = {
+                    velocity: new THREE.Vector3(
+                        Math.sin(angle) * Math.cos(verticalAngle) * speed,
+                        Math.sin(verticalAngle) * speed,
+                        Math.cos(angle) * Math.cos(verticalAngle) * speed
+                    ),
+                    life: 1.0,
+                    decay: 0.02 + Math.random() * 0.02
+                };
+                
+                scene.add(particle);
+                particles.push(particle);
+            }
+            
+            // 添加一些火光粒子
+            for (let i = 0; i < 10; i++) {
+                const geometry = new THREE.SphereGeometry(0.5 + Math.random() * 0.5, 8, 8);
+                const material = new THREE.MeshBasicMaterial({ 
+                    color: 0xFFFF00,
+                    transparent: true,
+                    opacity: 1.0
+                });
+                const particle = new THREE.Mesh(geometry, material);
+                
+                particle.position.copy(position);
+                particle.position.x += (Math.random() - 0.5) * 3;
+                particle.position.y += Math.random() * 1.5;
+                particle.position.z += (Math.random() - 0.5) * 3;
+                
+                const speed = 0.2 + Math.random() * 0.3;
+                const angle = Math.random() * Math.PI * 2;
+                
+                particle.userData = {
+                    velocity: new THREE.Vector3(
+                        Math.sin(angle) * speed,
+                        0.5 + Math.random() * 0.5,
+                        Math.cos(angle) * speed
+                    ),
+                    life: 1.0,
+                    decay: 0.03 + Math.random() * 0.02
+                };
+                
+                scene.add(particle);
+                particles.push(particle);
+            }
+        }
+
+        function updateParticles() {
+            const particlesToRemove = [];
+            
+            particles.forEach((particle, index) => {
+                // 更新粒子位置
+                particle.position.add(particle.userData.velocity);
+                
+                // 重力效果
+                particle.userData.velocity.y -= 0.01;
+                
+                // 更新生命值和透明度
+                particle.userData.life -= particle.userData.decay;
+                particle.material.opacity = particle.userData.life;
+                
+                // 如果粒子生命值结束，标记为移除
+                if (particle.userData.life <= 0) {
+                    particlesToRemove.push(index);
+                }
+            });
+            
+            // 从后往前移除粒子，避免索引问题
+            particlesToRemove.sort((a, b) => b - a).forEach(index => {
+                scene.remove(particles[index]);
+                particles.splice(index, 1);
+            });
+        }
+
+        function createSmoke(position) {
+            // 创建冒烟粒子
+            const particleCount = 5;
+            
+            for (let i = 0; i < particleCount; i++) {
+                const geometry = new THREE.SphereGeometry(0.5 + Math.random() * 0.5, 8, 8);
+                const material = new THREE.MeshBasicMaterial({ 
+                    color: 0x666666,
+                    transparent: true,
+                    opacity: 0.6
+                });
+                const particle = new THREE.Mesh(geometry, material);
+                
+                // 设置粒子位置
+                particle.position.copy(position);
+                particle.position.x += (Math.random() - 0.5) * 2;
+                particle.position.y += 2 + Math.random() * 1;
+                particle.position.z += (Math.random() - 0.5) * 2;
+                
+                // 向上飘动的速度
+                particle.userData = {
+                    velocity: new THREE.Vector3(
+                        (Math.random() - 0.5) * 0.1,
+                        0.1 + Math.random() * 0.1,
+                        (Math.random() - 0.5) * 0.1
+                    ),
+                    life: 1.0,
+                    decay: 0.005 + Math.random() * 0.005
+                };
+                
+                scene.add(particle);
+                smokeParticles.push(particle);
+            }
+        }
+
+        function updateSmokeParticles() {
+            const particlesToRemove = [];
+            
+            smokeParticles.forEach((particle, index) => {
+                // 更新粒子位置
+                particle.position.add(particle.userData.velocity);
+                
+                // 更新生命值和透明度
+                particle.userData.life -= particle.userData.decay;
+                particle.material.opacity = particle.userData.life * 0.6;
+                
+                // 如果粒子生命值结束，标记为移除
+                if (particle.userData.life <= 0) {
+                    particlesToRemove.push(index);
+                }
+            });
+            
+            // 从后往前移除粒子，避免索引问题
+            particlesToRemove.sort((a, b) => b - a).forEach(index => {
+                scene.remove(smokeParticles[index]);
+                smokeParticles.splice(index, 1);
+            });
+        }
+
+        function updateBullets() {
+            const bulletsToRemove = [];
+            const now = Date.now();
+
+            bullets.forEach((bullet, index) => {
+                // 更新子弹位置
+                bullet.mesh.position.x += bullet.direction.x * bullet.speed;
+                bullet.mesh.position.z += bullet.direction.z * bullet.speed;
+
+                if (now - bullet.creationTime > 7000) {
+                    scene.remove(bullet.mesh);
+                    bulletsToRemove.push(index);
+                    return;
+                }
+
+                if (checkCollision(bullet.mesh.position, 0.4)) {
+                    scene.remove(bullet.mesh);
+                    bulletsToRemove.push(index);
+                    return;
+                }
+
+                // 玩家和盟友的子弹击中敌方坦克
+                if (bullet.isPlayerBullet) {
+                    // 使用 for 循环从后往前遍历，避免索引问题
+                    for (let i = enemyTanks.length - 1; i >= 0; i--) {
+                        const enemyTank = enemyTanks[i];
+                        if (enemyTank.health > 0) {
+                            const distance = bullet.mesh.position.distanceTo(enemyTank.mesh.position);
+                            if (distance < 3) {
+                                enemyTank.health -= 40;
+                                enemyTank.hitCount++;
+                                scene.remove(bullet.mesh);
+                                bulletsToRemove.push(index);
+                                console.log('Enemy tank', i, 'hit! Health:', enemyTank.health);
+
+                                // 创建爆炸效果
+                                createExplosion(enemyTank.mesh.position);
+
+                                // 如果被击中两次以上,创建冒烟效果
+                                if (enemyTank.hitCount >= 2) {
+                                    createSmoke(enemyTank.mesh.position);
+                                }
+
+                                if (enemyTank.health <= 0) {
+                                    playExplosionSound();
+                                    scene.remove(enemyTank.mesh);
+                                    console.log('Enemy tank', i, 'destroyed!');
+                                    
+                                    // 从数组中移除被摧毁的敌方坦克
+                                    enemyTanks.splice(i, 1);
+                                    console.log('Enemy tank removed. Remaining:', enemyTanks.length);
+                                    
+                                    // 立即检查胜利条件
+                                    if (enemyTanks.length === 0 && !gameWon) {
+                                        console.log('=== VICTORY === All enemies destroyed!');
+                                        
+                                        // 显示胜利提示
+                                        const gameWonElement = document.getElementById('game-won');
+                                        if (gameWonElement) {
+                                            gameWonElement.style.display = 'flex';
+                                            console.log('Victory screen displayed');
+                                        }
+                                        
+                                        // 播放胜利音效
+                                        playVictorySound();
+                                        
+                                        // 设置游戏状态
+                                        gameWon = true;
+                                        console.log('Game won flag set to true');
+                                    }
+                                } else {
+                                    playHitSound();
+                                }
+                                break; // 一发子弹只能击中一个坦克
+                            }
+                        }
+                    }
+                } else {
+                    // 敌方子弹击中玩家
+                    if (playerTank.health > 0) {
+                        const distance = bullet.mesh.position.distanceTo(playerTank.mesh.position);
+                        if (distance < 3) {
+                            playerTank.health -= 20;
+                            playerTank.hitCount++;
+                            updateHealthBar();
+                            scene.remove(bullet.mesh);
+                            bulletsToRemove.push(index);
+
+                            // 创建爆炸效果
+                            createExplosion(playerTank.mesh.position);
+
+                            // 如果被击中两次以上,创建冒烟效果
+                            if (playerTank.hitCount >= 2) {
+                                createSmoke(playerTank.mesh.position);
+                            }
+
+                            if (playerTank.health <= 0) {
+                                playExplosionSound();
+                                playDefeatSound();
+                                gameOver = true;
+                                document.getElementById('game-over').style.display = 'flex';
+                            } else {
+                                playHitSound();
+                            }
+                        }
+                    }
+
+                    // 敌方子弹击中盟友
+                    for (let i = allyTanks.length - 1; i >= 0; i--) {
+                        const allyTank = allyTanks[i];
+                        if (allyTank.health > 0) {
+                            const distance = bullet.mesh.position.distanceTo(allyTank.mesh.position);
+                            if (distance < 3) {
+                                allyTank.health -= 20;
+                                allyTank.hitCount++;
+                                scene.remove(bullet.mesh);
+                                bulletsToRemove.push(index);
+
+                                // 创建爆炸效果
+                                createExplosion(allyTank.mesh.position);
+
+                                // 如果被击中两次以上,创建冒烟效果
+                                if (allyTank.hitCount >= 2) {
+                                    createSmoke(allyTank.mesh.position);
+                                }
+
+                                if (allyTank.health <= 0) {
+                                    playExplosionSound();
+                                    scene.remove(allyTank.mesh);
+                                    allyTanks.splice(i, 1);
+                                } else {
+                                    playHitSound();
+                                }
+                                break;
+                            }
+                        }
+                    }
+                }
+
+                if (Math.abs(bullet.mesh.position.x) > BOUNDARY_SIZE || Math.abs(bullet.mesh.position.z) > BOUNDARY_SIZE) {
+                    scene.remove(bullet.mesh);
+                    bulletsToRemove.push(index);
+                }
+            });
+
+            bulletsToRemove.sort((a, b) => b - a).forEach(index => {
+                bullets.splice(index, 1);
+            });
+        }
+
+        function updatePlayerTank() {
+            if (gameOver || gameWon) return;
+
+            const tank = playerTank;
+            const speed = 0.3;
+            const rotationSpeed = 0.04;
+
+            if (keys['w'] || keys['W']) {
+                const forward = new THREE.Vector3(0, 0, 1);
+                forward.applyQuaternion(tank.mesh.quaternion);
+                
+                tank.mesh.position.x += forward.x * speed;
+                tank.mesh.position.z += forward.z * speed;
+            } else if (keys['s'] || keys['S']) {
+                const backward = new THREE.Vector3(0, 0, -1);
+                backward.applyQuaternion(tank.mesh.quaternion);
+                
+                tank.mesh.position.x += backward.x * speed;
+                tank.mesh.position.z += backward.z * speed;
+            }
+
+            // 修复：在第一人称模式下，坦克跟随鼠标旋转
+            if (cameraMode === 'god') {
+                const centerX = window.innerWidth / 2;
+                const centerY = window.innerHeight / 2;
+                const deltaX = mouse.x - centerX;
+                const deltaY = mouse.y - centerY;
+                const targetRotation = Math.atan2(deltaX, deltaY);
+                tank.mesh.rotation.y = targetRotation;
+            } else {
+                // 第一人称模式：坦克跟随鼠标旋转
+                const centerX = window.innerWidth / 2;
+                const centerY = window.innerHeight / 2;
+                const deltaX = mouse.x - centerX;
+                const targetRotation = Math.atan2(deltaX, 100);
+                
+                // 平滑旋转
+                const rotationDiff = targetRotation - tank.mesh.rotation.y;
+                tank.mesh.rotation.y += rotationDiff * 0.1;
+            }
+
+            // 解决与障碍物的碰撞
+            resolveCollision(tank, 3);
+
+            // 解决与其他坦克的碰撞
+            allyTanks.forEach(allyTank => {
+                if (allyTank.health > 0 && checkTankCollision(tank, allyTank, 3)) {
+                    resolveTankCollision(tank, allyTank, 3);
+                }
+            });
+
+            enemyTanks.forEach(enemyTank => {
+                if (enemyTank.health > 0 && checkTankCollision(tank, enemyTank, 3)) {
+                    resolveTankCollision(tank, enemyTank, 3);
+                }
+            });
+
+            // 边界检查
+            if (checkBoundary(tank.mesh.position, 3)) {
+                // 简单的边界反弹
+                tank.mesh.position.x = Math.max(-BOUNDARY_SIZE + 3, Math.min(BOUNDARY_SIZE - 3, tank.mesh.position.x));
+                tank.mesh.position.z = Math.max(-BOUNDARY_SIZE + 3, Math.min(BOUNDARY_SIZE - 3, tank.mesh.position.z));
+            }
+        }
+
+        function updateAllyTanks() {
+            if (gameOver || gameWon) return;
+
+            allyTanks.forEach(allyTank => {
+                if (allyTank.health <= 0) return;
+
+                let nearestTarget = null;
+                let nearestDistance = Infinity;
+
+                enemyTanks.forEach(enemyTank => {
+                    if (enemyTank.health > 0) {
+                        const distance = allyTank.mesh.position.distanceTo(enemyTank.mesh.position);
+                        if (distance < nearestDistance) {
+                            nearestDistance = distance;
+                            nearestTarget = enemyTank;
+                        }
+                    }
+                });
+
+                if (nearestTarget) {
+                    const direction = new THREE.Vector3();
+                    direction.subVectors(nearestTarget.mesh.position, allyTank.mesh.position);
+                    direction.y = 0;
+                    direction.normalize();
+
+                    const angle = Math.atan2(direction.x, direction.z);
+                    allyTank.mesh.rotation.y = angle;
+
+                    if (nearestDistance > 20) {
+                        // 移动
+                        allyTank.mesh.position.x += direction.x * 0.2;
+                        allyTank.mesh.position.z += direction.z * 0.2;
+                    }
+
+                    if (nearestDistance < 40) {
+                        shoot(allyTank, true);
+                    }
+                }
+
+                // 解决与障碍物的碰撞
+                resolveCollision(allyTank, 3);
+
+                // 解决与其他坦克的碰撞
+                allyTanks.forEach(otherAllyTank => {
+                    if (otherAllyTank !== allyTank && otherAllyTank.health > 0 && checkTankCollision(allyTank, otherAllyTank, 3)) {
+                        resolveTankCollision(allyTank, otherAllyTank, 3);
+                    }
+                });
+
+                enemyTanks.forEach(enemyTank => {
+                    if (enemyTank.health > 0 && checkTankCollision(allyTank, enemyTank, 3)) {
+                        resolveTankCollision(allyTank, enemyTank, 3);
+                    }
+                });
+            });
+        }
+
+        function updateEnemyTanks() {
+            if (gameOver || gameWon) return;
+
+            enemyTanks.forEach(enemyTank => {
+                if (enemyTank.health <= 0) return;
+
+                let nearestTarget = null;
+                let nearestDistance = Infinity;
+
+                const allTargets = [playerTank, ...allyTanks];
+                allTargets.forEach(target => {
+                    if (target.health > 0) {
+                        const distance = enemyTank.mesh.position.distanceTo(target.mesh.position);
+                        if (distance < nearestDistance) {
+                            nearestDistance = distance;
+                            nearestTarget = target;
+                        }
+                    }
+                });
+
+                if (nearestTarget) {
+                    const direction = new THREE.Vector3();
+                    direction.subVectors(nearestTarget.mesh.position, enemyTank.mesh.position);
+                    direction.y = 0;
+                    direction.normalize();
+
+                    const angle = Math.atan2(direction.x, direction.z);
+                    enemyTank.mesh.rotation.y = angle;
+
+                    if (nearestDistance > 20) {
+                        // 移动
+                        enemyTank.mesh.position.x += direction.x * 0.2;
+                        enemyTank.mesh.position.z += direction.z * 0.2;
+                    }
+
+                    if (nearestDistance < 35) {
+                        shoot(enemyTank, false);
+                    }
+                }
+
+                // 解决与障碍物的碰撞
+                resolveCollision(enemyTank, 3);
+
+                // 解决与其他坦克的碰撞
+                allyTanks.forEach(allyTank => {
+                    if (allyTank.health > 0 && checkTankCollision(enemyTank, allyTank, 3)) {
+                        resolveTankCollision(enemyTank, allyTank, 3);
+                    }
+                });
+
+                enemyTanks.forEach(otherEnemyTank => {
+                    if (otherEnemyTank !== enemyTank && otherEnemyTank.health > 0 && checkTankCollision(enemyTank, otherEnemyTank, 3)) {
+                        resolveTankCollision(enemyTank, otherEnemyTank, 3);
+                    }
+                });
+
+                // 解决与玩家的碰撞
+                if (playerTank.health > 0 && checkTankCollision(enemyTank, playerTank, 3)) {
+                    resolveTankCollision(enemyTank, playerTank, 3);
+                }
+            });
+
+            // 检查胜利条件
+            if (enemyTanks.length === 0 && !gameWon) {
+                console.log('=== VICTORY === All enemies destroyed!');
+                
+                // 显示胜利提示
+                const gameWonElement = document.getElementById('game-won');
+                if (gameWonElement) {
+                    gameWonElement.style.display = 'flex';
+                    console.log('Victory screen displayed');
+                }
+                
+                // 播放胜利音效
+                playVictorySound();
+                
+                // 设置游戏状态
+                gameWon = true;
+                console.log('Game won flag set to true');
+            }
+
+            // 检查失败条件
+            const aliveAllies = allyTanks.filter(tank => tank.health > 0);
+            if (playerTank.health <= 0 && aliveAllies.length === 0 && !gameOver) {
+                gameOver = true;
+                document.getElementById('game-over').style.display = 'flex';
+            }
+        }
+
+        function updateHealthBar() {
+            const healthBarFill = document.getElementById('health-bar-fill');
+            const healthValue = document.getElementById('health-value');
+            
+            healthBarFill.style.width = playerTank.health + '%';
+            healthValue.textContent = playerTank.health + ' / 100';
+        }
+
+        function updateCamera() {
+            if (cameraMode === 'god') {
+                camera.position.set(playerTank.mesh.position.x, 50, playerTank.mesh.position.z + 60);
+                camera.lookAt(playerTank.mesh.position);
+            } else {
+                const offset = new THREE.Vector3(0, 2, -3);
+                offset.applyQuaternion(playerTank.mesh.quaternion);
+                camera.position.copy(playerTank.mesh.position);
+                camera.position.add(offset);
+                camera.lookAt(playerTank.mesh.position.x, playerTank.mesh.position.y + 2, playerTank.mesh.position.z + 5);
+            }
+        }
+
+        function toggleCameraMode() {
+            cameraMode = cameraMode === 'god' ? 'first' : 'god';
+            const cameraInfo = document.getElementById('camera-info');
+            cameraInfo.textContent = '当前视角：' + (cameraMode === 'god' ? '上帝视角' : '第一人称');
+            console.log('Camera mode toggled to:', cameraMode);
+        }
+
+        function showGameWon() {
+            gameWon = true;
+            document.getElementById('game-won').style.display = 'flex';
+        }
+
+        function restartGame() {
+            location.reload();
+        }
+
+        function onKeyDown(event) {
+            keys[event.key] = true;
+            
+            if (event.key === 'v' || event.key === 'V') {
+                toggleCameraMode();
+            }
+        }
+
+        function onKeyUp(event) {
+            keys[event.key] = false;
+        }
+
+        function onMouseMove(event) {
+            mouse.x = event.clientX;
+            mouse.y = event.clientY;
+        }
+
+        function onMouseDown(event) {
+            if (event.button === 0 && !gameOver && !gameWon) {
+                shoot(playerTank, true);
+            }
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            updatePlayerTank();
+            updateAllyTanks();
+            updateEnemyTanks();
+            updateBullets();
+            updateParticles();
+            updateSmokeParticles();
+            updateCamera();
+
+            renderer.render(scene, camera);
+        }
+
+        init();
+    </script>
+</body>
+</html>
